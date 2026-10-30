@@ -17,8 +17,8 @@ function render(){
 document.addEventListener('click',async ev=>{
   const el=ev.target.closest('[data-act]');if(!el)return;const a=el.dataset.act,id=el.dataset.id;
   try{
-  if(a==='login'){const {error}=await sb.auth.signInWithPassword({email:(v=>v.includes('@')?v:v+'@tros3d.com')($('#em').value.trim().toLowerCase()),password:$('#pw').value});if(error)return toast('Correo o contraseña incorrectos')}
-  else if(a==='logout'){await sb.auth.signOut()}
+  if(a==='login'){if($('#em').value.trim().toLowerCase()!=='alfredo'||$('#pw').value!=='Alfredo-8')return toast('Usuario o contraseña incorrectos');try{localStorage.setItem('t3d_ok','1')}catch(e){}S.user={};await dbLogin();await refresh()}
+  else if(a==='logout'){try{localStorage.removeItem('t3d_ok')}catch(e){}try{await sb.auth.signOut()}catch(e){}S.user=null;render()}
   else if(a==='new'){S.edit={name:'',price:'',discount:0,category:S.cats[0],description:'',images:[],featured:false};render();scrollTo(0,0)}
   else if(a==='edit'){S.edit=JSON.parse(JSON.stringify(S.prods.find(p=>p.id===id)));render();scrollTo(0,0)}
   else if(a==='cancel'){S.edit=null;render()}
@@ -34,7 +34,8 @@ document.addEventListener('click',async ev=>{
     const row={name,price:+pr,discount:Math.min(90,Math.max(0,+$('#f-disc').value||0)),category:$('#f-cat').value,description:$('#f-desc').value.trim(),images,featured:$('#f-feat').checked};
     const q=S.edit.id?sb.from('products').update(row).eq('id',S.edit.id):sb.from('products').insert(row);const {error}=await q;if(error)throw error;
     S.edit=null;toast('Guardado ✓');await refresh()}
-  }catch(e){toast('Error: '+(e.message||e));render()}
+  }catch(e){toast(/row-level|policy|permission/i.test(e.message||'')?'Supabase no deja guardar: falta habilitar la escritura (ver instrucciones)':'Error: '+(e.message||e));render()}
 });
-sb.auth.onAuthStateChange((_,s)=>{S.user=s?s.user:null;S.user?refresh():render()});
-sb.auth.getSession().then(({data})=>{S.user=data.session?data.session.user:null;S.user?refresh():render()});
+async function dbLogin(){try{const c={email:'alfredo@tros3d.com',password:'Alfredo-8'};const {data}=await sb.auth.getSession();if(data.session)return;const r=await sb.auth.signInWithPassword(c);if(r.error)await sb.auth.signUp(c)}catch(e){}}
+try{S.user=localStorage.getItem('t3d_ok')?{}:null}catch(e){}
+S.user?dbLogin().then(refresh):render();
